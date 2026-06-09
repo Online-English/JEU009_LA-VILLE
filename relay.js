@@ -142,7 +142,8 @@ function processAnswerResult(isCorrect) {
 function toggleDirectionDico() {
     searchDirection = (searchDirection === 'EN_FR') ? 'FR_EN' : 'EN_FR';
     document.getElementById('direction-label').innerText = (searchDirection === 'EN_FR') ? 'FR ➔ EN' : 'EN ➔ FR';
-    document.getElementById('search-input').placeholder = (searchDirection === 'EN_FR') ? 'Rechercher un objet...' : 'Search for an item...';
+    // 🟢 CORRIGÉ : Sémantique de la ville appliquée au placeholder
+    document.getElementById('search-input').placeholder = (searchDirection === 'EN_FR') ? 'Rechercher un lieu...' : 'Search for a place...';
     filterWords();
 }
 
@@ -587,4 +588,7 @@ function renderErrorHistory() {
         container.appendChild(div);
     });
 }
+// C'est cette ligne qu'il faut GARDER :
 function clearWordFromRevision(englishName) { removeError(englishName); renderErrorHistory(); }
+
+// 🟢 Et il n'y a plus rien du tout après (l'accolade en trop a été retirée) !

@@ -10,11 +10,11 @@ const fruitsData = [
     { en: "Bridge", fr: "Pont", emoji: "🌉", level: 1 },
     { en: "Bus stop", fr: "Arrêt de bus", emoji: "🚌", level: 1 },
     { en: "Subway station", fr: "Station de métro", emoji: "🚇", level: 1 },
-    { en: "Train station", fr: "Gare", emoji: " Privat", level: 1 }, // 🚉
+    { en: "Train station", fr: "Gare", emoji: "🚉", level: 1 }, // 🟢 Corrigé
     { en: "Parking lot", fr: "Parking", emoji: "🅿️", level: 1 },
     { en: "Park", fr: "Parc", emoji: "🌳", level: 1 },
     { en: "Bench", fr: "Banc", emoji: "🪑", level: 1 },
-    { en: "Fountain", fr: "Fontaine", emoji: "速度", level: 1 }, // ⛲
+    { en: "Fountain", fr: "Fontaine", emoji: "⛲", level: 1 }, // 🟢 Corrigé
     { en: "Avenue", fr: "Avenue", emoji: "🛣️", level: 1 },
     { en: "Road", fr: "Route", emoji: "🚗", level: 1 },
     { en: "Corner", fr: "Coin / Angle de rue", emoji: "📐", level: 1 },
@@ -116,13 +116,13 @@ const fruitsData = [
     { en: "Cathedral", fr: "Cathédrale", emoji: "⛪", level: 6 },
     { en: "Church", fr: "Église", emoji: "⛪", level: 6 },
     { en: "Chapel", fr: "Chapelle", emoji: "⛪", level: 6 },
-    { en: "Mosque", fr: "Mosquée", emoji: "🇲🇦", level: 6 }, // 🕌
+    { en: "Mosque", fr: "Mosquée", emoji: "🕌", level: 6 }, // 🟢 Corrigé
     { en: "Temple", fr: "Temple", emoji: "🛕", level: 6 },
     { en: "Synagogue", fr: "Synagogue", emoji: "🕍", level: 6 },
     { en: "Monument", fr: "Monument", emoji: "🗿", level: 6 },
     { en: "Statue", fr: "Statue", emoji: "🗽", level: 6 },
     { en: "Tower", fr: "Tour", emoji: "🗼", level: 6 },
-    { en: "Ruins", fr: "Ruins / Vestiges", emoji: "⚱️", level: 6 }, // 🏚️
+    { en: "Ruins", fr: "Ruines / Vestiges", emoji: "🏚️", level: 6 }, // 🟢 Corrigé
     { en: "Historic center", fr: "Centre historique / Vieille ville", emoji: "🏘️", level: 6 },
     { en: "Skyscraper", fr: "Gratte-ciel", emoji: "🏢", level: 6 },
     { en: "Arch", fr: "Arc (Ex: Arc de triomphe)", emoji: "🏛️", level: 6 },
