@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,9 +12,9 @@
             theme: {
                 extend: {
                     colors: {
-                        brandOrange: '#F58634',
-                        brandBlue: '#1C3D5A',
-                        brandGreen: '#52B788',
+                        brandBlue: '#0A0A0E',   // Fond noir ultra-moderne
+                        brandOrange: '#FF00E0', // Fuchsia Néon
+                        brandGreen: '#00E5FF',  // Cyan Électrique
                     }
                 }
             }
@@ -47,7 +47,7 @@
         .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-gray-50 text-brandBlue dark:bg-gray-900 dark:text-gray-100 font-sans min-h-screen flex flex-col transition-colors duration-200">
+<body class="bg-slate-950 text-gray-100 font-sans min-h-screen flex flex-col transition-colors duration-200">
 
     <header class="bg-brandBlue text-white p-4 shadow-md sticky top-0 z-50 dark:bg-gray-950">
         <div class="container mx-auto flex flex-col sm:flex-row justify-between items-center gap-3">
