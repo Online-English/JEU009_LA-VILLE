@@ -1,13 +1,19 @@
-// --- VARIABLES LOCALES DE GESTION DES JEUX ---
+// =========================================================================
+// --- VARIABLES LOCALES DE GESTION DES JEUX & MODES ---
+// =========================================================================
 let slideshowTimeout = null;
 let isSlideshowActive = false;
 let currentFlashIndex = 0;
 let quizTimeout = null;  
 let speakTimeout = null; 
 
-let quizStep = 1, quizScore = 0, currentQuizItem = null;
-let currentSpeakItem = null, speakScore = 0; 
-let selectedEnglishNode = null, selectedFrenchNode = null;
+let quizStep = 1;
+let quizScore = 0;
+let currentQuizItem = null;
+let currentSpeakItem = null;
+let speakScore = 0; 
+let selectedEnglishNode = null;
+let selectedFrenchNode = null;
 let isProcessingMatch = false; 
 
 // Variables pour le mode Contre-la-montre (Time Attack)
@@ -17,15 +23,20 @@ let taTimeLeft = 60;
 let taScore = 0;
 let currentTAItem = null;
 
+// =========================================================================
 // --- INITIALISATION AU DÉMARRAGE ---
+// =========================================================================
 window.onload = () => {
+    // Chargement des scores et de la progression depuis le localStorage
     loadStats(); 
     
-    document.getElementById('stat-high-quiz').innerText = highScores.quiz;
-    document.getElementById('stat-high-speak').innerText = highScores.speak || 0;
-    document.getElementById('stat-high-timeattack').innerText = highScores.timeattack || 0;
-    document.getElementById('stat-max-streak').innerText = maxStreak;
+    // Injection des statistiques dans l'interface utilisateur
+    if (document.getElementById('stat-high-quiz')) document.getElementById('stat-high-quiz').innerText = highScores.quiz;
+    if (document.getElementById('stat-high-speak')) document.getElementById('stat-high-speak').innerText = highScores.speak || 0;
+    if (document.getElementById('stat-high-timeattack')) document.getElementById('stat-high-timeattack').innerText = highScores.timeattack || 0;
+    if (document.getElementById('stat-max-streak')) document.getElementById('stat-max-streak').innerText = maxStreak;
     
+    // Initialisation des modules visuels
     updateLevelLockUI();
     renderDict();
     updateFlashcard();
@@ -33,27 +44,30 @@ window.onload = () => {
     renderErrorHistory();
 };
 
-// --- SYNCHRONISATION DU MENU DÉROULANT ---
+// =========================================================================
+// --- SYNCHRONISATION DU MENU DÉROULANT DES QUARTIERS ---
+// =========================================================================
 function setVocabLevel(level) {
     selectedVocabularyLevel = parseInt(level);
     
-    // Garde la valeur du select alignée en cas de modification externe
+    // Garde la valeur du sélecteur alignée en cas de modification externe
     const selectEl = document.getElementById('vocab-level-select');
     if (selectEl) selectEl.value = level;
     
+    // Actualisation des modules dépendants du niveau
     renderDict();
     updateFlashcard();
     resetQuizToMenu();
 }
 
-// Gestion dynamique des verrous de pièces dans le menu déroulant HTML
+// Gestion dynamique des verrous d'accès aux quartiers selon le niveau du joueur
 function updateLevelLockUI() {
     const playerLevel = getUserPlayerLevel();
     const hint = document.getElementById('vocab-unlock-hint');
     const selectEl = document.getElementById('vocab-level-select');
     if (!hint || !selectEl) return;
 
-    // Configuration des paliers urbains pour les 7 catégories
+    // Configuration des paliers requis pour les 7 catégories de la ville
     const levelsConfig = [
         { level: 2, req: 3, label: "Niveau 2 : Administration & Services" },
         { level: 3, req: 6, label: "Niveau 3 : Commerces & Magasins" },
@@ -74,6 +88,7 @@ function updateLevelLockUI() {
             opt.disabled = true;
             opt.innerText = `🔒 Niv.${cfg.level} (Requis Jv. ${cfg.req})`;
             
+            // Sécurité : Si l'utilisateur était sur un niveau verrouillé, reset au niveau 1
             if (selectedVocabularyLevel === cfg.level) {
                 selectedVocabularyLevel = 1;
                 selectEl.value = "1";
@@ -91,8 +106,11 @@ function updateLevelLockUI() {
     }
 }
 
-// --- INTERCEPTEUR DE CHANGEMENT D'ONGLET ---
+// =========================================================================
+// --- INTERCEPTEUR & ROUTEUR DE CHANGEMENT D'ONGLET ---
+// =========================================================================
 function switchTab(event, tabName) {
+    // Sécurité : Arrêt des processus automatisés en arrière-plan
     stopSlideshow();
     stopTimeAttack();
     
@@ -101,17 +119,33 @@ function switchTab(event, tabName) {
     
     resetQuizToMenu();
 
-    document.querySelectorAll('.tab-content').forEach(el => { el.classList.add('hidden'); el.classList.remove('active'); });
+    // Gestion des classes d'affichage des sections
+    document.querySelectorAll('.tab-content').forEach(el => { 
+        el.classList.add('hidden'); 
+        el.classList.remove('active'); 
+    });
+    
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.className = "tab-btn bg-gray-100 dark:bg-gray-700 text-brandBlue dark:text-gray-200 px-4 py-2 rounded-lg font-medium text-sm transition";
     });
 
     const targetTab = document.getElementById(`tab-${tabName}`);
-    targetTab.classList.remove('hidden'); targetTab.classList.add('active');
-    event.currentTarget.className = "tab-btn bg-brandBlue text-white px-4 py-2 rounded-lg font-medium text-sm transition";
+    if (targetTab) {
+        targetTab.classList.remove('hidden'); 
+        targetTab.classList.add('active');
+    }
+    
+    if (event && event.currentTarget) {
+        event.currentTarget.className = "tab-btn bg-brandBlue text-white px-4 py-2 rounded-lg font-medium text-sm transition";
+    }
 
-    document.getElementById('autoplay-container').className = tabName === 'flash' ? "flex items-center gap-2" : "hidden";
+    // Affichage conditionnel de la lecture automatique (uniquement pour les Flashcards)
+    const autoplayContainer = document.getElementById('autoplay-container');
+    if (autoplayContainer) {
+        autoplayContainer.className = tabName === 'flash' ? "flex items-center gap-2" : "hidden";
+    }
 
+    // Initialisation spécifique des modules de jeux au clic
     if (tabName === 'speak') initSpeak();
     if (tabName === 'match') initMatching();
     if (tabName === 'stats') {
@@ -120,30 +154,37 @@ function switchTab(event, tabName) {
     }
 }
 
+// Système global d'attribution des points et de gestion des streaks (séries)
 function processAnswerResult(isCorrect) {
     if (isCorrect) {
         currentStreak++;
         if (currentStreak > maxStreak) maxStreak = currentStreak;
         playSoundEffect('success');
         totalPoints += 10;
-        document.getElementById('total-points').innerText = totalPoints;
+        if (document.getElementById('total-points')) document.getElementById('total-points').innerText = totalPoints;
         updateLevelAndTitle();
         if (currentStreak >= 15) checkAndUnlockBadge("streak_15");
     } else {
         currentStreak = 0;
         playSoundEffect('fail');
     }
-    document.getElementById('streak-count').innerText = currentStreak;
-    document.getElementById('stat-max-streak').innerText = maxStreak;
+    if (document.getElementById('streak-count')) document.getElementById('streak-count').innerText = currentStreak;
+    if (document.getElementById('stat-max-streak')) document.getElementById('stat-max-streak').innerText = maxStreak;
     saveStats();
 }
 
+// =========================================================================
 // --- MODULE 1 : DICTIONNAIRE INVERSÉ ---
+// =========================================================================
 function toggleDirectionDico() {
     searchDirection = (searchDirection === 'EN_FR') ? 'FR_EN' : 'EN_FR';
-    document.getElementById('direction-label').innerText = (searchDirection === 'EN_FR') ? 'FR ➔ EN' : 'EN ➔ FR';
-    // 🟢 CORRIGÉ : Sémantique de la ville appliquée au placeholder
-    document.getElementById('search-input').placeholder = (searchDirection === 'EN_FR') ? 'Rechercher un lieu...' : 'Search for a place...';
+    
+    const label = document.getElementById('direction-label');
+    const input = document.getElementById('search-input');
+    
+    if (label) label.innerText = (searchDirection === 'EN_FR') ? 'FR ➔ EN' : 'EN ➔ FR';
+    if (input) input.placeholder = (searchDirection === 'EN_FR') ? 'Rechercher un lieu...' : 'Search for a place...';
+    
     filterWords();
 }
 
@@ -155,7 +196,7 @@ function renderDict(data = null) {
     if (data === null) {
         data = fruitsData.filter(f => f.level === selectedVocabularyLevel);
     }
-    if(data.length === 0) {
+    if (data.length === 0) {
         container.innerHTML = `<p class="text-center text-sm py-4 text-gray-400">Aucun élément trouvé dans cette zone.</p>`;
         return;
     }
@@ -189,84 +230,107 @@ function renderDict(data = null) {
 }
 
 function filterWords() {
-    const query = document.getElementById('search-input').value.toLowerCase();
+    const queryEl = document.getElementById('search-input');
+    const query = queryEl ? queryEl.value.toLowerCase() : '';
+    
     let sourceData = fruitsData.filter(f => f.level === selectedVocabularyLevel);
-    if(filterOnlyFavs) sourceData = sourceData.filter(f => favoriteFruits.includes(f.en));
+    if (filterOnlyFavs) sourceData = sourceData.filter(f => favoriteFruits.includes(f.en));
+    
     const filtered = sourceData.filter(f => f.en.toLowerCase().includes(query) || f.fr.toLowerCase().includes(query));
     renderDict(filtered);
 }
 
 function toggleFavorite(englishName, event) {
-    if(event) event.stopPropagation();
+    if (event) event.stopPropagation();
     const index = favoriteFruits.indexOf(englishName);
     if (index > -1) favoriteFruits.splice(index, 1);
     else favoriteFruits.push(englishName);
-    localStorage.setItem('oe_fav_city', JSON.stringify(favoriteFruits)); // Alignement city
+    localStorage.setItem('oe_fav_city', JSON.stringify(favoriteFruits));
     filterWords();
 }
 
 function toggleFavFilter() {
     filterOnlyFavs = !filterOnlyFavs;
-    document.getElementById('fav-filter-btn').className = filterOnlyFavs 
-        ? "px-4 bg-yellow-500 text-white border-2 border-yellow-500 rounded-xl transition"
-        : "px-4 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl text-gray-400 hover:text-yellow-500 transition";
+    const btn = document.getElementById('fav-filter-btn');
+    if (btn) {
+        btn.className = filterOnlyFavs 
+            ? "px-4 bg-yellow-500 text-white border-2 border-yellow-500 rounded-xl transition"
+            : "px-4 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl text-gray-400 hover:text-yellow-500 transition";
+    }
     filterWords();
 }
 
-// --- MODULE 2 : FLASHCARDS & DIAPORAMA ---
+// =========================================================================
+// --- MODULE 2 : FLASHCARDS & REPLAY DIAPORAMA ---
+// =========================================================================
 function updateFlashcard() {
     const card = document.getElementById('main-flashcard');
     if (!card) return;
     card.classList.remove('flipped');
+    
     const activeLevelWords = fruitsData.filter(f => f.level === selectedVocabularyLevel);
-    if(activeLevelWords.length === 0) return;
+    if (activeLevelWords.length === 0) return;
     if (currentFlashIndex >= activeLevelWords.length) currentFlashIndex = 0;
 
     setTimeout(() => {
         const item = activeLevelWords[currentFlashIndex];
-        document.getElementById('flash-emoji').innerText = item.emoji;
-        document.getElementById('flash-en').innerText = item.en;
-        document.getElementById('flash-fr').innerText = item.fr;
-        if(document.getElementById('autoplay-checkbox').checked && !isSlideshowActive) playAudio(item.en);
+        if (document.getElementById('flash-emoji')) document.getElementById('flash-emoji').innerText = item.emoji;
+        if (document.getElementById('flash-en')) document.getElementById('flash-en').innerText = item.en;
+        if (document.getElementById('flash-fr')) document.getElementById('flash-fr').innerText = item.fr;
+        
+        const autoplayCb = document.getElementById('autoplay-checkbox');
+        if (autoplayCb && autoplayCb.checked && !isSlideshowActive) {
+            playAudio(item.en);
+        }
     }, 150);
 }
 
 function nextFlashcard() { 
     const maxLen = fruitsData.filter(f => f.level === selectedVocabularyLevel).length;
+    if (maxLen === 0) return;
     currentFlashIndex = (currentFlashIndex + 1) % maxLen; 
     updateFlashcard(); 
 }
+
 function prevFlashcard() { 
     const maxLen = fruitsData.filter(f => f.level === selectedVocabularyLevel).length;
+    if (maxLen === 0) return;
     currentFlashIndex = (currentFlashIndex - 1 + maxLen) % maxLen; 
     updateFlashcard(); 
 }
 
 function toggleSlideshow() { if (isSlideshowActive) stopSlideshow(); else startSlideshow(); }
+
 function startSlideshow() {
     isSlideshowActive = true;
-    document.getElementById('slideshow-btn').className = "bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition hover:scale-105 active:scale-95";
-    document.getElementById('slideshow-btn').innerHTML = `<i class="fa-solid fa-square mr-1"></i> Arrêter le Diaporama`;
-    document.getElementById('flash-prev-btn').disabled = true;
-    document.getElementById('flash-next-btn').disabled = true;
-    document.getElementById('flash-prev-btn').classList.add('opacity-40');
-    document.getElementById('flash-next-btn').classList.add('opacity-40');
+    const btn = document.getElementById('slideshow-btn');
+    if (btn) {
+        btn.className = "bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition hover:scale-105 active:scale-95";
+        btn.innerHTML = `<i class="fa-solid fa-square mr-1"></i> Arrêter le Diaporama`;
+    }
+    
+    ['flash-prev-btn', 'flash-next-btn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.disabled = true; el.classList.add('opacity-40'); }
+    });
     runSlideshowLoop();
 }
 
 function stopSlideshow() {
     isSlideshowActive = false;
     clearTimeout(slideshowTimeout);
+    
     const btn = document.getElementById('slideshow-btn');
     if (btn) {
         btn.className = "bg-brandGreen text-white px-4 py-2 rounded-xl text-sm font-bold shadow transition hover:scale-105 active:scale-95";
         btn.innerHTML = `<i class="fa-solid fa-play mr-1"></i> Mode Diaporama`;
     }
-    const pB = document.getElementById('flash-prev-btn');
-    if(pB) {
-        pB.disabled = false; pB.classList.remove('opacity-40');
-        document.getElementById('flash-next-btn').disabled = false; document.getElementById('flash-next-btn').classList.remove('opacity-40');
-    }
+    
+    ['flash-prev-btn', 'flash-next-btn'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.disabled = false; el.classList.remove('opacity-40'); }
+    });
+    
     const card = document.getElementById('main-flashcard');
     if (card) card.classList.remove('flipped');
 }
@@ -274,13 +338,17 @@ function stopSlideshow() {
 function runSlideshowLoop() {
     if (!isSlideshowActive) return;
     const activeLevelWords = fruitsData.filter(f => f.level === selectedVocabularyLevel);
+    if (activeLevelWords.length === 0) return;
+    
     const card = document.getElementById('main-flashcard');
-    card.classList.remove('flipped');
+    if (card) card.classList.remove('flipped');
+    
     playAudio(activeLevelWords[currentFlashIndex].en);
 
     slideshowTimeout = setTimeout(() => {
         if (!isSlideshowActive) return;
-        card.classList.add('flipped');
+        if (card) card.classList.add('flipped');
+        
         slideshowTimeout = setTimeout(() => {
             if (!isSlideshowActive) return;
             currentFlashIndex = (currentFlashIndex + 1) % activeLevelWords.length;
@@ -290,18 +358,21 @@ function runSlideshowLoop() {
     }, 2500);
 }
 
-// --- MODULE 3 : GESTIONNAIRE DU QUIZ ---
+// =========================================================================
+// --- MODULE 3 : INTERFACE & STRATÉGIE DU QUIZ CLASSIQUE ---
+// =========================================================================
 function resetQuizToMenu() {
-    document.getElementById('quiz-mode-menu').classList.remove('hidden');
-    document.getElementById('quiz-classic-zone').classList.add('hidden');
-    document.getElementById('quiz-timeattack-zone').classList.add('hidden');
+    if (document.getElementById('quiz-mode-menu')) document.getElementById('quiz-mode-menu').classList.remove('hidden');
+    if (document.getElementById('quiz-classic-zone')) document.getElementById('quiz-classic-zone').classList.add('hidden');
+    if (document.getElementById('quiz-timeattack-zone')) document.getElementById('quiz-timeattack-zone').classList.add('hidden');
 }
 
 function launchStandardQuiz() {
-    document.getElementById('quiz-mode-menu').classList.add('hidden');
-    document.getElementById('quiz-classic-zone').classList.remove('hidden');
-    quizStep = 1; quizScore = 0; 
-    document.getElementById('quiz-score').innerText = quizScore; 
+    if (document.getElementById('quiz-mode-menu')) document.getElementById('quiz-mode-menu').classList.add('hidden');
+    if (document.getElementById('quiz-classic-zone')) document.getElementById('quiz-classic-zone').classList.remove('hidden');
+    quizStep = 1; 
+    quizScore = 0; 
+    if (document.getElementById('quiz-score')) document.getElementById('quiz-score').innerText = quizScore; 
     generateQuizQuestion();
 }
 
@@ -313,13 +384,14 @@ function generateQuizQuestion() {
             checkAndUnlockBadge("first_perfect");
         }
         alert(`Quiz terminé ! Score de l'élève : ${quizScore}/10.`);
-        document.getElementById('stat-high-quiz').innerText = highScores.quiz;
+        if (document.getElementById('stat-high-quiz')) document.getElementById('stat-high-quiz').innerText = highScores.quiz;
         resetQuizToMenu();
         return;
     }
-    document.getElementById('quiz-current').innerText = quizStep;
+    
+    if (document.getElementById('quiz-current')) document.getElementById('quiz-current').innerText = quizStep;
     currentQuizItem = getNextExerciseWord(); 
-    document.getElementById('quiz-question').innerText = currentQuizItem.en;
+    if (document.getElementById('quiz-question')) document.getElementById('quiz-question').innerText = currentQuizItem.en;
 
     const activePack = fruitsData.filter(f => f.level === selectedVocabularyLevel);
     let choices = [currentQuizItem.fr];
@@ -330,7 +402,9 @@ function generateQuizQuestion() {
     choices.sort(() => Math.random() - 0.5);
 
     const container = document.getElementById('quiz-options');
+    if (!container) return;
     container.innerHTML = '';
+    
     choices.forEach(choice => {
         const btn = document.createElement('button');
         btn.className = "w-full bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-brandBlue dark:text-white p-3 rounded-xl font-medium text-left transition hover:border-brandBlue";
@@ -345,7 +419,7 @@ function checkQuizAnswer(button, selected) {
     if (selected === currentQuizItem.fr) {
         button.className = "w-full bg-brandGreen text-white p-3 rounded-xl font-medium text-left transition";
         quizScore++;
-        document.getElementById('quiz-score').innerText = quizScore;
+        if (document.getElementById('quiz-score')) document.getElementById('quiz-score').innerText = quizScore;
         removeError(currentQuizItem.en);
         processAnswerResult(true);
     } else {
@@ -353,32 +427,36 @@ function checkQuizAnswer(button, selected) {
         registerError(currentQuizItem);
         processAnswerResult(false);
         document.querySelectorAll('#quiz-options button').forEach(b => {
-            if(b.innerText === currentQuizItem.fr) b.className = "w-full bg-brandGreen text-white p-3 rounded-xl font-medium text-left transition";
+            if (b.innerText === currentQuizItem.fr) b.className = "w-full bg-brandGreen text-white p-3 rounded-xl font-medium text-left transition";
         });
     }
     quizTimeout = setTimeout(() => { quizStep++; generateQuizQuestion(); }, 1200);
 }
 
-// --- MODULE 4 : MODE CONTRE-LA-MONTRE ---
+// =========================================================================
+// --- MODULE 4 : MODE CONTRE-LA-MONTRE (TIME ATTACK) ---
+// =========================================================================
 function launchTimeAttack() {
-    document.getElementById('quiz-mode-menu').classList.add('hidden');
-    document.getElementById('quiz-timeattack-zone').classList.remove('hidden');
-    taScore = 0; taTimeLeft = 60;
-    document.getElementById('ta-score').innerText = taScore;
-    document.getElementById('ta-timer').innerText = taTimeLeft;
+    if (document.getElementById('quiz-mode-menu')) document.getElementById('quiz-mode-menu').classList.add('hidden');
+    if (document.getElementById('quiz-timeattack-zone')) document.getElementById('quiz-timeattack-zone').classList.remove('hidden');
+    taScore = 0; 
+    taTimeLeft = 60;
+    if (document.getElementById('ta-score')) document.getElementById('ta-score').innerText = taScore;
+    if (document.getElementById('ta-timer')) document.getElementById('ta-timer').innerText = taTimeLeft;
     generateTAQuestion();
 
     clearInterval(taTimerInterval);
     taTimerInterval = setInterval(() => {
         taTimeLeft--;
-        document.getElementById('ta-timer').innerText = taTimeLeft;
+        if (document.getElementById('ta-timer')) document.getElementById('ta-timer').innerText = taTimeLeft;
         if (taTimeLeft <= 0) stopTimeAttack(true);
     }, 1000);
 }
 
 function generateTAQuestion() {
     currentTAItem = getNextExerciseWord();
-    document.getElementById('ta-question').innerText = currentTAItem.en;
+    if (document.getElementById('ta-question')) document.getElementById('ta-question').innerText = currentTAItem.en;
+    
     const activePack = fruitsData.filter(f => f.level === selectedVocabularyLevel);
     let choices = [currentTAItem.fr];
     while (choices.length < Math.min(4, activePack.length)) {
@@ -388,7 +466,9 @@ function generateTAQuestion() {
     choices.sort(() => Math.random() - 0.5);
 
     const container = document.getElementById('ta-options');
+    if (!container) return;
     container.innerHTML = '';
+    
     choices.forEach(choice => {
         const btn = document.createElement('button');
         btn.className = "w-full bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 text-brandBlue dark:text-white p-3 rounded-xl font-medium text-left transition hover:border-brandOrange";
@@ -402,7 +482,7 @@ function checkTAAnswer(button, selected) {
     document.querySelectorAll('#ta-options button').forEach(b => b.disabled = true);
     if (selected === currentTAItem.fr) {
         taScore++;
-        document.getElementById('ta-score').innerText = taScore;
+        if (document.getElementById('ta-score')) document.getElementById('ta-score').innerText = taScore;
         removeError(currentTAItem.en);
         processAnswerResult(true);
         generateTAQuestion(); 
@@ -422,28 +502,31 @@ function stopTimeAttack(isFinishedFinished = false) {
         if (taScore >= 20) checkAndUnlockBadge("time_20");
         if (taScore > highScores.timeattack) {
             highScores.timeattack = taScore;
-            document.getElementById('stat-high-timeattack').innerText = taScore;
+            if (document.getElementById('stat-high-timeattack')) document.getElementById('stat-high-timeattack').innerText = taScore;
             saveStats();
         }
         resetQuizToMenu();
     }
 }
 
-// --- MODULE 5 : RECONNAISSANCE VOCALE ---
+// =========================================================================
+// --- MODULE 5 : QUIZ DE RECONNAISSANCE VOCALE (PRONONCIATION) ---
+// =========================================================================
 function initSpeak() {
     speakScore = 0;
-    document.getElementById('speak-score').innerText = speakScore;
+    if (document.getElementById('speak-score')) document.getElementById('speak-score').innerText = speakScore;
     generateSpeakQuestion();
 }
 
 function generateSpeakQuestion() {
     currentSpeakItem = getNextExerciseWord();
-    document.getElementById('speak-emoji').innerText = currentSpeakItem.emoji;
-    document.getElementById('speak-prompt-fr').innerText = currentSpeakItem.fr;
+    if (document.getElementById('speak-emoji')) document.getElementById('speak-emoji').innerText = currentSpeakItem.emoji;
+    if (document.getElementById('speak-prompt-fr')) document.getElementById('speak-prompt-fr').innerText = currentSpeakItem.fr;
+    
     const resultBox = document.getElementById('speech-result');
-    resultBox.className = "hidden text-base font-bold p-3 rounded-xl";
-    document.getElementById('speech-status').innerText = "Cliquez sur le micro pour parler";
-    document.getElementById('mic-pulse').classList.add('hidden');
+    if (resultBox) resultBox.className = "hidden text-base font-bold p-3 rounded-xl";
+    if (document.getElementById('speech-status')) document.getElementById('speech-status').innerText = "Cliquez sur le micro pour parler";
+    if (document.getElementById('mic-pulse')) document.getElementById('mic-pulse').classList.add('hidden');
 }
 
 function startSpeechRecognition() {
@@ -453,68 +536,84 @@ function startSpeechRecognition() {
         return;
     }
     const recognition = new SpeechRecognition();
-    recognition.lang = 'en-US'; recognition.interimResults = false; recognition.maxAlternatives = 1;
+    recognition.lang = 'en-US'; 
+    recognition.interimResults = false; 
+    recognition.maxAlternatives = 1;
 
     const pulse = document.getElementById('mic-pulse');
     const statusText = document.getElementById('speech-status');
     const resultBox = document.getElementById('speech-result');
 
-    pulse.classList.remove('hidden');
-    statusText.innerText = "Écoute active... Parlez !";
-    resultBox.className = "hidden text-base font-bold p-3 rounded-xl";
+    if (pulse) pulse.classList.remove('hidden');
+    if (statusText) statusText.innerText = "Écoute active... Parlez !";
+    if (resultBox) resultBox.className = "hidden text-base font-bold p-3 rounded-xl";
+    
     recognition.start();
 
     recognition.onresult = (event) => {
         const speechResult = event.results[0][0].transcript.trim().toLowerCase();
         const targetWord = currentSpeakItem.en.toLowerCase();
+        
+        if (!resultBox) return;
         resultBox.classList.remove('hidden');
         resultBox.innerHTML = `L'élève a dit : <span class="italic">"${speechResult}"</span>`;
 
         if (speechResult === targetWord) {
             resultBox.classList.add('bg-green-100', 'text-green-700', 'dark:bg-green-900/30', 'dark:text-green-400');
-            statusText.innerText = "Excellente prononciation ! +10 XP";
+            if (statusText) statusText.innerText = "Excellente prononciation ! +10 XP";
             speakScore++;
-            document.getElementById('speak-score').innerText = speakScore;
+            if (document.getElementById('speak-score')) document.getElementById('speak-score').innerText = speakScore;
+            
             if (speakScore > highScores.speak) {
                 highScores.speak = speakScore;
-                document.getElementById('stat-high-speak').innerText = speakScore;
+                if (document.getElementById('stat-high-speak')) document.getElementById('stat-high-speak').innerText = speakScore;
                 saveStats();
             }
-            removeError(currentSpeakItem.en); processAnswerResult(true);
+            removeError(currentSpeakItem.en); 
+            processAnswerResult(true);
             speakTimeout = setTimeout(() => generateSpeakQuestion(), 2000);
         } else {
             resultBox.classList.add('bg-red-100', 'text-red-700', 'dark:bg-red-900/30', 'dark:text-red-400');
-            statusText.innerText = "Essaye encore !";
-            registerError(currentSpeakItem); processAnswerResult(false);
+            if (statusText) statusText.innerText = "Essaye encore !";
+            registerError(currentSpeakItem); 
+            processAnswerResult(false);
         }
     };
-    recognition.onspeechend = () => { recognition.stop(); pulse.classList.add('hidden'); };
-    recognition.onerror = () => { pulse.classList.add('hidden'); statusText.innerText = "Aucun son détecté. Réessayez."; };
+    
+    recognition.onspeechend = () => { recognition.stop(); if (pulse) pulse.classList.add('hidden'); };
+    recognition.onerror = () => { if (pulse) pulse.classList.add('hidden'); if (statusText) statusText.innerText = "Aucun son détecté. Réessayez."; };
 }
 
-// --- MODULE 6 : MATCHING GAME ---
+// =========================================================================
+// --- MODULE 6 : MATCHING GAME (ASSOCIATION DE CARTES) ---
+// =========================================================================
 function initMatching() {
     isProcessingMatch = false;
     const grid = document.getElementById('matching-grid'); 
-    if(!grid) return;
+    if (!grid) return;
     grid.innerHTML = '';
     
     const activePack = fruitsData.filter(f => f.level === selectedVocabularyLevel);
     let shuffled = [...activePack].sort(() => Math.random() - 0.5).slice(0, 4);
     let englishCards = shuffled.map(f => ({ text: f.en, type: 'en', id: f.en }));
     let frenchCards = shuffled.map(f => ({ text: f.fr, type: 'fr', id: f.en }));
-    englishCards.sort(() => Math.random() - 0.5); frenchCards.sort(() => Math.random() - 0.5);
+    
+    englishCards.sort(() => Math.random() - 0.5); 
+    frenchCards.sort(() => Math.random() - 0.5);
 
-    for(let i=0; i < englishCards.length; i++) {
+    for (let i = 0; i < englishCards.length; i++) {
         const btnEn = document.createElement('button');
         btnEn.className = "bg-white dark:bg-gray-800 border-2 border-brandBlue text-brandBlue dark:text-cyan-400 p-3 rounded-xl font-bold text-center text-xs sm:text-sm";
-        btnEn.innerText = englishCards[i].text; btnEn.onclick = () => { btnEn.dataset.id = englishCards[i].id; btnEn.dataset.type = 'en'; handleMatchSelect(btnEn); };
+        btnEn.innerText = englishCards[i].text; 
+        btnEn.onclick = () => { btnEn.dataset.id = englishCards[i].id; btnEn.dataset.type = 'en'; handleMatchSelect(btnEn); };
 
         const btnFr = document.createElement('button');
         btnFr.className = "bg-white dark:bg-gray-800 border-2 border-brandOrange text-brandOrange p-3 rounded-xl font-bold text-center text-xs sm:text-sm";
-        btnFr.innerText = frenchCards[i].text; btnFr.onclick = () => { btnFr.dataset.id = frenchCards[i].id; btnFr.dataset.type = 'fr'; handleMatchSelect(btnFr); };
+        btnFr.innerText = frenchCards[i].text; 
+        btnFr.onclick = () => { btnFr.dataset.id = frenchCards[i].id; btnFr.dataset.type = 'fr'; handleMatchSelect(btnFr); };
 
-        grid.appendChild(btnEn); grid.appendChild(btnFr);
+        grid.appendChild(btnEn); 
+        grid.appendChild(btnFr);
     }
 }
 
@@ -522,18 +621,22 @@ function handleMatchSelect(node) {
     if (isProcessingMatch) return;
     if (node.dataset.type === 'en') {
         if (selectedEnglishNode) selectedEnglishNode.classList.remove('bg-brandBlue/20', 'dark:bg-brandBlue/40');
-        selectedEnglishNode = node; selectedEnglishNode.classList.add('bg-brandBlue/20', 'dark:bg-brandBlue/40');
+        selectedEnglishNode = node; 
+        selectedEnglishNode.classList.add('bg-brandBlue/20', 'dark:bg-brandBlue/40');
     } else {
         if (selectedFrenchNode) selectedFrenchNode.classList.remove('bg-brandOrange/20', 'dark:bg-brandOrange/40');
-        selectedFrenchNode = node; selectedFrenchNode.classList.add('bg-brandOrange/20', 'dark:bg-brandOrange/40');
+        selectedFrenchNode = node; 
+        selectedFrenchNode.classList.add('bg-brandOrange/20', 'dark:bg-brandOrange/40');
     }
 
     if (selectedEnglishNode && selectedFrenchNode) {
         if (selectedEnglishNode.dataset.id === selectedFrenchNode.dataset.id) {
             selectedEnglishNode.className = "bg-brandGreen text-white p-3 rounded-xl font-bold text-center pointer-events-none transition text-xs sm:text-sm matched-card";
             selectedFrenchNode.className = "bg-brandGreen text-white p-3 rounded-xl font-bold text-center pointer-events-none transition text-xs sm:text-sm matched-card";
-            removeError(selectedEnglishNode.dataset.id); processAnswerResult(true);
-            selectedEnglishNode = null; selectedFrenchNode = null;
+            removeError(selectedEnglishNode.dataset.id); 
+            processAnswerResult(true);
+            selectedEnglishNode = null; 
+            selectedFrenchNode = null;
 
             const totalMatched = document.querySelectorAll('.matched-card').length;
             if (totalMatched === 8) {
@@ -544,24 +647,33 @@ function handleMatchSelect(node) {
             const eNode = selectedEnglishNode, fNode = selectedFrenchNode;
             eNode.className = "bg-red-500 text-white p-3 rounded-xl font-bold text-center text-xs sm:text-sm";
             fNode.className = "bg-red-500 text-white p-3 rounded-xl font-bold text-center text-xs sm:text-sm";
+            
             const failFruit = fruitsData.find(f => f.en === eNode.dataset.id);
-            if(failFruit) registerError(failFruit);
+            if (failFruit) registerError(failFruit);
             processAnswerResult(false);
+            
             setTimeout(() => {
                 eNode.className = "bg-white dark:bg-gray-800 border-2 border-brandBlue text-brandBlue dark:text-cyan-400 p-3 rounded-xl font-bold text-center text-xs sm:text-sm";
                 fNode.className = "bg-white dark:bg-gray-800 border-2 border-brandOrange text-brandOrange p-3 rounded-xl font-bold text-center text-xs sm:text-sm";
                 isProcessingMatch = false; 
             }, 800);
-            selectedEnglishNode = null; selectedFrenchNode = null;
+            selectedEnglishNode = null; 
+            selectedFrenchNode = null;
         }
     }
 }
 
-// --- MODULE 7 & 8 : PANNEAUX TROPHÉES & ERREURS ---
+// =========================================================================
+// --- MODULE 7 & 8 : PANNEAUX TROPHÉES & CARNET DE RÉVISIONS ---
+// =========================================================================
 function renderBadgesUI() {
-    const container = document.getElementById('badges-list'); if(!container) return; container.innerHTML = '';
+    const container = document.getElementById('badges-list'); 
+    if (!container) return; 
+    container.innerHTML = '';
+    
     badgesDatabase.forEach(badge => {
-        const isUnlocked = unlockedBadges.includes(badge.id); const div = document.createElement('div');
+        const isUnlocked = unlockedBadges.includes(badge.id); 
+        const div = document.createElement('div');
         div.className = `p-3 rounded-xl border flex items-center gap-3 transition ${isUnlocked ? 'bg-white dark:bg-gray-800 border-green-200 dark:border-green-900/40 opacity-100 shadow-sm' : 'bg-gray-50 dark:bg-gray-900/50 border-gray-200 dark:border-gray-800 opacity-40'}`;
         div.innerHTML = `
             <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl shadow-inner ${isUnlocked ? badge.color + ' text-white' : 'bg-gray-300 text-gray-500 dark:bg-gray-700'}">
@@ -576,19 +688,30 @@ function renderBadgesUI() {
 }
 
 function renderErrorHistory() {
-    const container = document.getElementById('error-history-list'); if (!container) return; container.innerHTML = '';
+    const container = document.getElementById('error-history-list'); 
+    if (!container) return; 
+    container.innerHTML = '';
+    
     if (errorHistory.length === 0) {
-        container.innerHTML = `<p class="text-gray-400 italic text-center text-xs py-4">Aucun mot en révision. Félicitations !</p>`; return;
+        container.innerHTML = `<p class="text-gray-400 italic text-center text-xs py-4">Aucun mot en révision. Félicitations !</p>`; 
+        return;
     }
+    
     errorHistory.forEach(item => {
-        const div = document.createElement('div'); div.className = "flex items-center justify-between p-2 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/40 rounded-lg text-xs";
+        const div = document.createElement('div'); 
+        div.className = "flex items-center justify-between p-2 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/40 rounded-lg text-xs";
         div.innerHTML = `
-            <div class="flex items-center gap-2"><span>${item.emoji}</span><span class="font-bold text-brandBlue dark:text-red-300">${item.en}</span><span class="text-gray-400">(${item.fr}) - Liste ${item.level}</span></div>
+            <div class="flex items-center gap-2">
+                <span>${item.emoji}</span>
+                <span class="font-bold text-brandBlue dark:text-red-300">${item.en}</span>
+                <span class="text-gray-400">(${item.fr}) - Liste ${item.level}</span>
+            </div>
             <button onclick="clearWordFromRevision('${item.en}')" class="text-brandGreen hover:underline font-bold transition text-[10px]"><i class="fa-solid fa-check"></i> Acquis</button>`;
         container.appendChild(div);
     });
 }
-// C'est cette ligne qu'il faut GARDER :
-function clearWordFromRevision(englishName) { removeError(englishName); renderErrorHistory(); }
 
-// 🟢 Et il n'y a plus rien du tout après (l'accolade en trop a été retirée) !
+function clearWordFromRevision(englishName) { 
+    removeError(englishName); 
+    renderErrorHistory(); 
+}

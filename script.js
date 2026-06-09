@@ -1,4 +1,6 @@
+// =========================================================================
 // --- BASE DE DONNÉES CONSOLIDÉE (140 Mots de la Ville sur 7 Niveaux) ---
+// =========================================================================
 const fruitsData = [
     // NIVEAU 1 : Transports, Axes & Orientation (20 mots)
     { en: "City", fr: "Ville / Grande ville", emoji: "🏙️", level: 1 },
@@ -10,11 +12,11 @@ const fruitsData = [
     { en: "Bridge", fr: "Pont", emoji: "🌉", level: 1 },
     { en: "Bus stop", fr: "Arrêt de bus", emoji: "🚌", level: 1 },
     { en: "Subway station", fr: "Station de métro", emoji: "🚇", level: 1 },
-    { en: "Train station", fr: "Gare", emoji: "🚉", level: 1 }, // 🟢 Corrigé
+    { en: "Train station", fr: "Gare", emoji: "🚉", level: 1 },
     { en: "Parking lot", fr: "Parking", emoji: "🅿️", level: 1 },
     { en: "Park", fr: "Parc", emoji: "🌳", level: 1 },
     { en: "Bench", fr: "Banc", emoji: "🪑", level: 1 },
-    { en: "Fountain", fr: "Fontaine", emoji: "⛲", level: 1 }, // 🟢 Corrigé
+    { en: "Fountain", fr: "Fontaine", emoji: "⛲", level: 1 },
     { en: "Avenue", fr: "Avenue", emoji: "🛣️", level: 1 },
     { en: "Road", fr: "Route", emoji: "🚗", level: 1 },
     { en: "Corner", fr: "Coin / Angle de rue", emoji: "📐", level: 1 },
@@ -116,13 +118,13 @@ const fruitsData = [
     { en: "Cathedral", fr: "Cathédrale", emoji: "⛪", level: 6 },
     { en: "Church", fr: "Église", emoji: "⛪", level: 6 },
     { en: "Chapel", fr: "Chapelle", emoji: "⛪", level: 6 },
-    { en: "Mosque", fr: "Mosquée", emoji: "🕌", level: 6 }, // 🟢 Corrigé
+    { en: "Mosque", fr: "Mosquée", emoji: "🕌", level: 6 },
     { en: "Temple", fr: "Temple", emoji: "🛕", level: 6 },
     { en: "Synagogue", fr: "Synagogue", emoji: "🕍", level: 6 },
     { en: "Monument", fr: "Monument", emoji: "🗿", level: 6 },
     { en: "Statue", fr: "Statue", emoji: "🗽", level: 6 },
     { en: "Tower", fr: "Tour", emoji: "🗼", level: 6 },
-    { en: "Ruins", fr: "Ruines / Vestiges", emoji: "🏚️", level: 6 }, // 🟢 Corrigé
+    { en: "Ruins", fr: "Ruines / Vestiges", emoji: "🏚️", level: 6 },
     { en: "Historic center", fr: "Centre historique / Vieille ville", emoji: "🏘️", level: 6 },
     { en: "Skyscraper", fr: "Gratte-ciel", emoji: "🏢", level: 6 },
     { en: "Arch", fr: "Arc (Ex: Arc de triomphe)", emoji: "🏛️", level: 6 },
@@ -155,7 +157,9 @@ const fruitsData = [
     { en: "Outskirts", fr: "Périphérie / Abords de la ville", emoji: "🗺️", level: 7 }
 ];
 
+// =========================================================================
 // --- ÉTATS GÉNÉRAUX & STATISTIQUES ---
+// =========================================================================
 let currentStreak = 0, maxStreak = 0, totalPoints = 0;
 let highScores = { quiz: 0, speak: 0, timeattack: 0 };
 let favoriteFruits = [];
@@ -167,7 +171,9 @@ let searchDirection = 'EN_FR';
 let globalAudioCtx = null; 
 let selectedVocabularyLevel = 1; 
 
+// =========================================================================
 // --- CONFIGURATION DES BADGES ---
+// =========================================================================
 const badgesDatabase = [
     { id: "first_perfect", title: "Sans Faute !", desc: "Faire un 10/10 en QCM", icon: "🏅", color: "bg-yellow-500" },
     { id: "streak_15", title: "Inarrêtable", desc: "Atteindre une série de 15 bonnes réponses", icon: "🔥", color: "bg-orange-500" },
@@ -175,9 +181,14 @@ const badgesDatabase = [
     { id: "polyglotte", title: "Polyglotte", desc: "Débloquer de nouveaux quartiers", icon: "🗣️", color: "bg-purple-500" }
 ];
 
+// =========================================================================
+// --- ALGORITHME DE SÉLECTION DES MOTS (Priorisation des erreurs) ---
+// =========================================================================
 function getNextExerciseWord() {
     const currentLevelWords = fruitsData.filter(f => f.level === parseInt(selectedVocabularyLevel));
     const currentLevelErrors = errorHistory.filter(err => err.level === parseInt(selectedVocabularyLevel));
+    
+    // 35% de chance de faire réapparaître un mot du carnet d'erreurs s'il y en a
     if (currentLevelErrors.length > 0 && Math.random() < 0.35) {
         return currentLevelErrors[Math.floor(Math.random() * currentLevelErrors.length)];
     }
@@ -189,21 +200,28 @@ function checkAndUnlockBadge(badgeId) {
         unlockedBadges.push(badgeId);
         localStorage.setItem('oe_unlocked_badges_city', JSON.stringify(unlockedBadges));
         triggerConfetti();
-        if(typeof renderBadgesUI === 'function') renderBadgesUI();
+        if (typeof renderBadgesUI === 'function') renderBadgesUI();
     }
 }
 
-// --- MODULE AUDIO ---
+// =========================================================================
+// --- MODULE AUDIO (Synthèse Vocale) ---
+// =========================================================================
 let preferredVoice = null;
+
 function initVoices() {
     if (!('speechSynthesis' in window)) return;
     const voices = window.speechSynthesis.getVoices();
     if (voices.length === 0) return;
+    
+    // Recherche d'une voix anglaise de haute qualité
     let bestVoice = voices.find(voice => voice.lang.toLowerCase().startsWith('en') && (voice.name.includes('Google') || voice.name.includes('Natural') || voice.name.includes('Neural') || voice.name.includes('Premium')));
     if (!bestVoice) bestVoice = voices.find(voice => voice.lang.toLowerCase().startsWith('en') && !voice.name.includes('Desktop'));
     if (!bestVoice) bestVoice = voices.find(voice => voice.lang.toLowerCase().startsWith('en'));
+    
     if (bestVoice) preferredVoice = bestVoice;
 }
+
 if ('speechSynthesis' in window) {
     if (window.speechSynthesis.onvoiceschanged !== undefined) window.speechSynthesis.onvoiceschanged = initVoices;
     initVoices();
@@ -234,6 +252,7 @@ function playAudio(text) {
         if (preferredVoice) utterance.voice = preferredVoice;
         window.speechSynthesis.speak(utterance);
     } else {
+        // Solution de secours (Fallback) via Google TTS si l'API native échoue
         const encodedText = encodeURIComponent(text.toLowerCase());
         const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&tl=en&client=tw-ob&q=${encodedText}`;
         const audio = new Audio(audioUrl);
@@ -242,25 +261,31 @@ function playAudio(text) {
     }
 }
 
+// Synthèse de sons via AudioContext (sans fichiers externes mp3)
 function playSoundEffect(type) {
     if (!window.AudioContext && !window.webkitAudioContext) return;
     if (!globalAudioCtx) globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (globalAudioCtx.state === 'suspended') globalAudioCtx.resume();
+    
     const osc = globalAudioCtx.createOscillator();
     const gain = globalAudioCtx.createGain();
-    osc.connect(gain); gain.connect(globalAudioCtx.destination);
+    osc.connect(gain); 
+    gain.connect(globalAudioCtx.destination);
+    
     if (type === 'success') {
-        osc.frequency.setValueAtTime(523.25, globalAudioCtx.currentTime);
-        osc.frequency.setValueAtTime(659.25, globalAudioCtx.currentTime + 0.1);
+        osc.frequency.setValueAtTime(523.25, globalAudioCtx.currentTime); // Do5
+        osc.frequency.setValueAtTime(659.25, globalAudioCtx.currentTime + 0.1); // Mi5
         gain.gain.setValueAtTime(0.1, globalAudioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, globalAudioCtx.currentTime + 0.3);
-        osc.start(); osc.stop(globalAudioCtx.currentTime + 0.3);
+        osc.start(); 
+        osc.stop(globalAudioCtx.currentTime + 0.3);
     } else if (type === 'fail') {
-        osc.frequency.setValueAtTime(196.00, globalAudioCtx.currentTime);
-        osc.frequency.setValueAtTime(146.83, globalAudioCtx.currentTime + 0.15);
+        osc.frequency.setValueAtTime(196.00, globalAudioCtx.currentTime); // Sol4
+        osc.frequency.setValueAtTime(146.83, globalAudioCtx.currentTime + 0.15); // Ré4
         gain.gain.setValueAtTime(0.15, globalAudioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.01, globalAudioCtx.currentTime + 0.4);
-        osc.start(); osc.stop(globalAudioCtx.currentTime + 0.4);
+        osc.start(); 
+        osc.stop(globalAudioCtx.currentTime + 0.4);
     }
 }
 
@@ -277,29 +302,35 @@ function triggerConfetti() {
     }
 }
 
-// --- CARNET DE REVISIONS ---
+// =========================================================================
+// --- CARNET DE REVISIONS (GESTION EXTÉRIEURE) ---
+// =========================================================================
 function registerError(fruitObj) {
     if (!errorHistory.some(f => f.en === fruitObj.en)) {
         errorHistory.push(fruitObj);
         localStorage.setItem('oe_error_history_city', JSON.stringify(errorHistory));
     }
 }
+
 function removeError(englishName) {
     errorHistory = errorHistory.filter(f => f.en !== englishName);
     localStorage.setItem('oe_error_history_city', JSON.stringify(errorHistory));
 }
 
+// =========================================================================
+// --- CALCULS DU LEVEL ET PROGRESSION DU JOUEUR ---
+// =========================================================================
 function getUserPlayerLevel() {
     return Math.floor(totalPoints / 150) + 1;
 }
 
-// --- ADAPTATION DES GRADES (Urbanisme & Métropole) ---
 function updateLevelAndTitle() {
     const pLevel = getUserPlayerLevel();
     const levelEl = document.getElementById('user-level');
     const titleEl = document.getElementById('user-title');
     if (levelEl) levelEl.innerText = pLevel;
 
+    // Détermination des grades d'urbanisme
     let title = "Novice Urbain";
     if (pLevel >= 3) title = "Citadin Curieux";
     if (pLevel >= 6) title = "Guide Local";
@@ -311,6 +342,9 @@ function updateLevelAndTitle() {
     if (typeof updateLevelLockUI === 'function') updateLevelLockUI();
 }
 
+// =========================================================================
+// --- CONFIGURATIONS GLOBAL DU SYSTÈME (DARK MODE & RESET) ---
+// =========================================================================
 function toggleDarkMode() {
     const isDark = document.documentElement.classList.toggle('dark');
     localStorage.setItem('oe_dark_mode', isDark);
@@ -322,13 +356,22 @@ function resetStats() {
     if (confirm("Êtes-vous sûr de vouloir réinitialiser toutes vos statistiques et votre progression Ville ?")) {
         const keysToRemove = ['oe_total_points_city', 'oe_high_quiz_city', 'oe_high_speak_city', 'oe_high_timeattack_city', 'oe_max_streak_city', 'oe_fav_city', 'oe_error_history_city', 'oe_unlocked_badges_city'];
         keysToRemove.forEach(key => localStorage.removeItem(key));
-        totalPoints = 0; highScores = { quiz: 0, speak: 0, timeattack: 0 }; maxStreak = 0; currentStreak = 0; errorHistory = []; unlockedBadges = []; favoriteFruits = [];
+        
+        totalPoints = 0; 
+        highScores = { quiz: 0, speak: 0, timeattack: 0 }; 
+        maxStreak = 0; 
+        currentStreak = 0; 
+        errorHistory = []; 
+        unlockedBadges = []; 
+        favoriteFruits = [];
+        
         document.getElementById('total-points').innerText = totalPoints;
         document.getElementById('streak-count').innerText = currentStreak;
         document.getElementById('stat-high-quiz').innerText = 0;
         document.getElementById('stat-high-speak').innerText = 0;
         document.getElementById('stat-high-timeattack').innerText = 0;
         document.getElementById('stat-max-streak').innerText = 0;
+        
         updateLevelAndTitle();
         if (typeof renderDict === 'function') renderDict();
         if (typeof updateFlashcard === 'function') updateFlashcard();

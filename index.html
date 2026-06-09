@@ -21,15 +21,18 @@
         }
     </script>
     <style>
+        /* Styles pour l'effet de retournement de la Flashcard */
         .flashcard { perspective: 1000px; }
         .flashcard-inner { transition: transform 0.6s; transform-style: preserve-3d; }
         .flashcard.flipped .flashcard-inner { transform: rotateY(180deg); }
         .flashcard-front, .flashcard-back { backface-visibility: hidden; }
         .flashcard-back { transform: rotateY(180deg); }
+        
+        /* Gestion de l'affichage des onglets */
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         
-        /* Animation Confettis */
+        /* Animation des confettis lors des victoires */
         .confetti {
             position: fixed; width: 10px; height: 10px; z-index: 100;
             animation: fall 3s linear forwards;
@@ -38,6 +41,10 @@
             0% { transform: translateY(-5vh) rotate(0deg); opacity: 1; }
             100% { transform: translateY(105vh) rotate(360deg); opacity: 0; }
         }
+        
+        /* Cacher la barre de défilement horizontale sur le menu des onglets */
+        .scrollbar-none::-webkit-scrollbar { display: none; }
+        .scrollbar-none { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="bg-gray-50 text-brandBlue dark:bg-gray-900 dark:text-gray-100 font-sans min-h-screen flex flex-col transition-colors duration-200">
@@ -195,7 +202,7 @@
 
             <div id="quiz-timeattack-zone" class="hidden space-y-4">
                 <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                    <span class="font-bold text-red-500 flex items-center gap-1.5"><i class="fa-solid fa-clock animate-spin-slow"></i> Temps restant : <span id="ta-timer" class="font-black text-lg">60</span>s</span>
+                    <span class="font-bold text-red-500 flex items-center gap-1.5"><i class="fa-solid fa-clock"></i> Temps restant : <span id="ta-timer" class="font-black text-lg">60</span>s</span>
                     <span class="text-brandOrange font-bold">Mots validés : <span id="ta-score" class="font-black text-lg">0</span></span>
                 </div>
                 <div class="bg-gradient-to-r from-red-500/5 to-brandOrange/5 bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-md border-2 border-brandOrange/20 text-center space-y-2">
@@ -247,16 +254,19 @@
                     <span class="text-xl font-black text-brandBlue dark:text-white" id="stat-high-timeattack">0</span>
                 </div>
             </div>
+            
             <div class="bg-white dark:bg-gray-800 p-3 rounded-xl shadow text-center">
                 <span class="text-xs text-gray-500 block font-medium">Plus longue série de bonnes réponses</span>
                 <span class="text-2xl font-black text-brandOrange" id="stat-max-streak">0</span> 🔥
             </div>
+            
             <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow border border-gray-100 dark:border-gray-700">
                 <h3 class="font-bold text-xs text-brandBlue dark:text-white uppercase tracking-wider mb-3 flex items-center gap-1.5">
                     <i class="fa-solid fa-trophy text-yellow-500"></i> Médailles & Badges débloqués
                 </h3>
                 <div id="badges-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2"></div>
             </div>
+            
             <div class="bg-white dark:bg-gray-800 p-4 rounded-xl shadow border border-gray-100 dark:border-gray-700">
                 <h3 class="font-bold text-xs text-red-500 uppercase tracking-wider mb-2 flex items-center gap-2">
                     <i class="fa-solid fa-graduation-cap"></i> Carnet de Révisions (Mots à retravailler)
@@ -264,6 +274,7 @@
                 <p class="text-[10px] text-gray-400 mb-3">Ces mots réapparaissent automatiquement en priorité lors des sessions de Quiz.</p>
                 <div id="error-history-list" class="space-y-2 max-h-48 overflow-y-auto pr-1 text-sm"></div>
             </div>
+            
             <button onclick="resetStats()" class="w-full bg-red-50 text-red-500 border border-red-200 p-2 rounded-xl text-xs font-semibold transition hover:bg-red-100">
                 Réinitialiser mes statistiques
             </button>
